@@ -28,6 +28,6 @@ public class SensorValidator implements Validator {
         Sensor sensor = (Sensor) target;
 
         if (sensorService.findOne(sensor.getName()).isPresent())
-            errors.rejectValue("name", "", "this name is already taken");
+            errors.rejectValue("name", "403", "this name is already taken");
     }
 }

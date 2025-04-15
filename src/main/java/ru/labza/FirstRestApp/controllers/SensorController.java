@@ -13,24 +13,30 @@ import ru.labza.FirstRestApp.models.Sensor;
 import ru.labza.FirstRestApp.services.SensorService;
 import ru.labza.FirstRestApp.util.SensorErrorResponse;
 import ru.labza.FirstRestApp.util.SensorNotCreatedException;
+import ru.labza.FirstRestApp.util.SensorValidator;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("sensors")
+@RequestMapping("/sensors")
 public class SensorController {
     private final SensorService sensorService;
+    private final SensorValidator sensorValidator;
     private final ModelMapper modelMapper;
 
     @Autowired
-    public SensorController(SensorService sensorService, ModelMapper modelMapper) {
+    public SensorController(SensorService sensorService, SensorValidator sensorValidator, ModelMapper modelMapper) {
         this.sensorService = sensorService;
+        this.sensorValidator = sensorValidator;
         this.modelMapper = modelMapper;
     }
 
     @PostMapping("/registration")
     public ResponseEntity<HttpStatus> registration(@RequestBody @Valid SensorDTO sensorDTO,
                                                    BindingResult bindingResult) {
+
+        Sensor sensor = convertToSensor(sensorDTO);
+        sensorValidator.validate(sensor, bindingResult);
         if (bindingResult.hasErrors()) {
             StringBuilder errorMsg = new StringBuilder();
 
@@ -39,27 +45,23 @@ public class SensorController {
                 errorMsg.append(error.getField())
                         .append(" - ")
                         .append(error.getDefaultMessage())
-                        .append(";");
+                        .append("; ");
         throw new SensorNotCreatedException(errorMsg.toString());
         }
-        sensorService.save(convertToSensor(sensorDTO));
+        sensorService.save(sensor);
         return ResponseEntity.ok(HttpStatus.OK);
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(SensorNotCreatedException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     private ResponseEntity<SensorErrorResponse> handleException(SensorNotCreatedException e) {
-        SensorErrorResponse response = new SensorErrorResponse("Sensor wasn't created",
+        SensorErrorResponse response = new SensorErrorResponse(e.getMessage(),
                 System.currentTimeMillis());
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     private Sensor convertToSensor(SensorDTO sensorDTO) {
-        Sensor sensor = modelMapper.map(sensorDTO, Sensor.class);
-        enrichSensor(sensor);
-        return sensor;
-    }
-    void enrichSensor(Sensor sensor) {
-        sensor.setId(sensorService.findOne(sensor.getName()).get().getId());
+        return modelMapper.map(sensorDTO, Sensor.class);
     }
 
     private SensorDTO convertToSensorDTO(Sensor sensor) {

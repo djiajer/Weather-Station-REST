@@ -3,6 +3,8 @@ package ru.labza.FirstRestApp.models;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "measurements")
 public class Measurement {
@@ -24,13 +26,17 @@ public class Measurement {
     @JoinColumn(name = "fk_sensor_id", referencedColumnName = "id")
     private Sensor sensor;
 
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
     public Measurement() {
     }
 
-    public Measurement(Double value, boolean raining, Sensor sensor) {
+    public Measurement(Double value, boolean raining, Sensor sensor, LocalDateTime createdAt) {
         this.value = value;
         this.raining = raining;
         this.sensor = sensor;
+        this.createdAt = createdAt;
     }
 
     public int getId() {
@@ -63,5 +69,13 @@ public class Measurement {
 
     public void setSensor(Sensor sensor) {
         this.sensor = sensor;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

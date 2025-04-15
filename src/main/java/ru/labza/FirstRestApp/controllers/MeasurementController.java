@@ -10,12 +10,18 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import ru.labza.FirstRestApp.dto.MeasurementDTO;
 import ru.labza.FirstRestApp.models.Measurement;
+import ru.labza.FirstRestApp.models.Sensor;
 import ru.labza.FirstRestApp.services.MeasurementService;
+import ru.labza.FirstRestApp.services.SensorService;
 import ru.labza.FirstRestApp.util.MeasurementErrorResponse;
 import ru.labza.FirstRestApp.util.MeasurementNotAddedException;
+import ru.labza.FirstRestApp.util.SensorErrorResponse;
+import ru.labza.FirstRestApp.util.SensorNotFoundException;
 
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -24,13 +30,13 @@ public class MeasurementController {
 
     private final MeasurementService measurementService;
     private final ModelMapper modelMapper;
-    private final SensorController sensorController;
+    private final SensorService sensorService;
 
     @Autowired
-    public MeasurementController(MeasurementService measurementService, ModelMapper modelMapper, SensorController sensorController) {
+    public MeasurementController(MeasurementService measurementService, ModelMapper modelMapper, SensorService sensorService) {
         this.measurementService = measurementService;
         this.modelMapper = modelMapper;
-        this.sensorController = sensorController;
+        this.sensorService = sensorService;
     }
 
     @PostMapping("/add")
@@ -49,10 +55,10 @@ public class MeasurementController {
         }
         measurementService.add(convertToMeasurement(measurementDTO));
 
-        return new ResponseEntity<>(HttpStatus.OK);
+        return ResponseEntity.ok(HttpStatus.OK);
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(MeasurementNotAddedException.class)
     private ResponseEntity<MeasurementErrorResponse> handleException(MeasurementNotAddedException e) {
         MeasurementErrorResponse response = new MeasurementErrorResponse("Measurement wasn't added",
                 System.currentTimeMillis());
@@ -71,11 +77,31 @@ public class MeasurementController {
 
     private Measurement convertToMeasurement(MeasurementDTO measurementDTO) {
         Measurement measurement = modelMapper.map(measurementDTO, Measurement.class);
-        sensorController.enrichSensor(measurement.getSensor());
+        enrichMeasurement(measurement);
         return measurement;
     }
 
     private MeasurementDTO convertToMeasurementDTO(Measurement measurement) {
         return modelMapper.map(measurement, MeasurementDTO.class);
     }
+
+    private void enrichMeasurement(Measurement measurement) {
+        bindSensorId(measurement.getSensor());
+        measurement.setCreatedAt(LocalDateTime.now());
+    }
+
+    private void bindSensorId(Sensor sensor) throws SensorNotFoundException {
+        Optional<Sensor> opt = sensorService.findOne(sensor.getName());
+        if (opt.isPresent())
+            sensor.setId(opt.get().getId());
+        else throw new SensorNotFoundException("sensor not found");
+    }
+    @ExceptionHandler(SensorNotFoundException.class)
+    private ResponseEntity<SensorErrorResponse> handleException(SensorNotFoundException e) {
+        SensorErrorResponse response = new SensorErrorResponse(e.getMessage(),
+                System.currentTimeMillis());
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+
 }
